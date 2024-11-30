@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Production</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f4f4f9;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #eaeaea;
+    }
+    input, textarea {
+      width: 90%;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    textarea {
+      resize: none;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
+    .totals {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    button {
+      display: block;
+      margin: 20px auto;
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    p{
+       text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1> <span class="underline-text">DAILY PRODUCTION REPORT</span>
+
+      <hr class="underline-bar">
+      </h1>
+      <p>HERO ACCESSORIES LINE</p>
+    <form id="checkSheetForm">
+      <table>
+        <thead>
+          <tr>
+            <th>SI.NO</th>
+            <th>Part Name</th>
+            <th>Total Production</th>
+            <th>ACED Moved Part</th>
+            <th>Defects</th>
+            <th>SPR (%)</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Dynamic Rows will be inserted here -->
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <p>Total Production: <span id="total-production">0</span></p>
+        <p>Total ACED Move: <span id="total-aced">0</span></p>
+        <p>Total Defects: <span id="total-defects">0</span></p>
+        <p>Overall SPR (%): <span id="overall-spr">0.00%</span></p>
+      </div>
+
+      <button type="button" id="generate-pdf">Click Here To Make Production Report</button>
+    </form>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const tbody = document.querySelector('tbody');
+      const totalProductionElem = document.getElementById('total-production');
+      const totalAcedElem = document.getElementById('total-aced');
+      const totalDefectsElem = document.getElementById('total-defects');
+      const overallSprElem = document.getElementById('overall-spr');
+
+      const partsCount = 11; // Changed from 10 to 11 to add one more part.
+
+      // Generate dynamic rows
+      for (let i = 1; i <= partsCount; i++) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${i}</td>
+          <td><input type="text" class="part-name" name="part-name-${i}" placeholder="Enter part name"></td>
+          <td><input type="number" class="quantity" name="quantity-${i}" min="0" placeholder="0"></td>
+          <td><input type="number" class="aced" name="aced-${i}" min="0" placeholder="0"></td>
+          <td><input type="number" class="defects" name="defects-${i}" min="0" placeholder="0"></td>
+          <td><input type="text" class="spr" name="spr-${i}" placeholder="0.00%" readonly></td>
+          <td><textarea name="notes-${i}" rows="2" placeholder="Add notes"></textarea></td>
+        `;
+        tbody.appendChild(row);
+      }
+
+      // Calculate totals and SPR %
+      function calculateTotals() {
+        let totalProduction = 0;
+        let totalAced = 0;
+        let totalDefects = 0;
+        let overallSpr = 0;
+
+        document.querySelectorAll('tbody tr').forEach((row) => {
+          const quantity = parseFloat(row.querySelector('.quantity').value) || 0;
+          const aced = parseFloat(row.querySelector('.aced').value) || 0;
+          const defects = parseFloat(row.querySelector('.defects').value) || 0;
+
+          const spr = quantity > 0 ? ((1 - defects / quantity) * 100).toFixed(2) : 0;
+          row.querySelector('.spr').value = `${spr}%`;
+
+          totalProduction += quantity;
+          totalAced += aced;
+          totalDefects += defects;
+        });
+
+        overallSpr = totalProduction > 0 ? ((1 - totalDefects / totalProduction) * 100).toFixed(2) : 0;
+
+        totalProductionElem.textContent = totalProduction;
+        totalAcedElem.textContent = totalAced;
+        totalDefectsElem.textContent = totalDefects;
+        overallSprElem.textContent = `${overallSpr}%`;
+      }
+
+      document.querySelector('tbody').addEventListener('input', calculateTotals);
+
+      // Generate PDF function
+      document.getElementById('generate-pdf').addEventListener('click', function () {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        const tableData = [];
+        document.querySelectorAll('tbody tr').forEach((row) => {
+          const cells = row.querySelectorAll('td');
+          const partName = cells[1].querySelector('input').value || '-';
+          const quantity = cells[2].querySelector('input').value || '0';
+          const aced = cells[3].querySelector('input').value || '0';
+          const defects = cells[4].querySelector('input').value || '0';
+          const spr = cells[5].querySelector('input').value || '0%';
+          const notes = cells[6].querySelector('textarea').value || '-';
+          tableData.push([cells[0].textContent, partName, quantity, aced, defects, spr, notes]);
+        });
+
+        doc.autoTable({
+          head: [['SI.NO', 'Part Name', 'Total Production', 'ACED Move', 'Defects', 'SPR (%)', 'Notes']],
+          body: tableData,
+          startY: 20,
+          theme: 'striped',
+          headStyles: { fillColor: [0, 123, 255] },
+        });
+
+        // Add totals
+        doc.text(`Total Production: ${totalProductionElem.textContent}`, 14, doc.lastAutoTable.finalY + 10);
+        doc.text(`Total ACED Move: ${totalAcedElem.textContent}`, 14, doc.lastAutoTable.finalY + 20);
+        doc.text(`Total Defects: ${totalDefectsElem.textContent}`, 14, doc.lastAutoTable.finalY + 30);
+        doc.text(`Overall SPR (%): ${overallSprElem.textContent}`, 14, doc.lastAutoTable.finalY + 40);
+
+        doc.save('production-check-sheet.pdf');
+      });
+    });
+  </script>
+</body>
+</html>
