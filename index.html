@@ -59,18 +59,34 @@
     button:hover {
       background-color: #218838;
     }
-    p{
+    p {
        text-align: center;
+    }
+    .date-container {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .date-container label {
+      font-size: 16px;
+      margin-right: 10px;
+    }
+    .date-container input {
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1> <span class="underline-text">DAILY PRODUCTION REPORT</span>
-
       <hr class="underline-bar">
-      </h1>
-      <p>HERO ACCESSORIES LINE</p>
+    </h1>
+    <p>HERO ACCESSORIES LINE</p>
+    <div class="date-container">
+      <label for="report-date">Report Date:</label>
+      <input type="date" id="report-date">
+    </div>
     <form id="checkSheetForm">
       <table>
         <thead>
@@ -109,8 +125,9 @@
       const totalAcedElem = document.getElementById('total-aced');
       const totalDefectsElem = document.getElementById('total-defects');
       const overallSprElem = document.getElementById('overall-spr');
+      const reportDateElem = document.getElementById('report-date');
 
-      const partsCount = 11; // Changed from 10 to 11 to add one more part.
+      const partsCount = 11;
 
       // Generate dynamic rows
       for (let i = 1; i <= partsCount; i++) {
@@ -174,6 +191,10 @@
           tableData.push([cells[0].textContent, partName, quantity, aced, defects, spr, notes]);
         });
 
+        // Add report date
+        const reportDate = reportDateElem.value || 'No Date Provided';
+        doc.text(`Production Report Date: ${reportDate}`, 14, 10);
+
         doc.autoTable({
           head: [['SI.NO', 'Part Name', 'Total Production', 'ACED Move', 'Defects', 'SPR (%)', 'Notes']],
           body: tableData,
@@ -188,7 +209,7 @@
         doc.text(`Total Defects: ${totalDefectsElem.textContent}`, 14, doc.lastAutoTable.finalY + 30);
         doc.text(`Overall SPR (%): ${overallSprElem.textContent}`, 14, doc.lastAutoTable.finalY + 40);
 
-        doc.save('production-check-sheet.pdf');
+        doc.save('DAILY PRODUCTION REPORT.pdf');
       });
     });
   </script>
