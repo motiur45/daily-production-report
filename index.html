@@ -1,5 +1,3 @@
-    
-</html>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,7 +8,7 @@
     body {
       margin: 0;
       padding: 0;
-      background-image: url('metal.jpg');
+      background-image: url('LoginBg.jpg');
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
@@ -144,7 +142,9 @@
           <tr>
             <th>SI.NO</th>
             <th>PART NAME</th>
-            <th>TOTAL PRODUCTION</th>
+            <th>A SHIFT PRODUCTION</th>
+            <th>B SHIFT PRODUCTION</th>
+            <th>TOTAL PRODUCTION</th> <!-- New Column for Total Production -->
             <th>ACED MOVED PART</th>
             <th>DEFECTS</th>
             <th>SPR (%)</th>
@@ -156,6 +156,8 @@
         </tbody>
       </table>
       <div class="totals">
+        <p>Total A Shift Production: <span id="total-a-shift">0</span></p>
+        <p>Total B Shift Production: <span id="total-b-shift">0</span></p>
         <p>Total Production: <span id="total-production">0</span></p>
         <p>Total ACED Move: <span id="total-aced">0</span></p>
         <p>Total Defects: <span id="total-defects">0</span></p>
@@ -167,10 +169,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
   <script>
-    // Script remains unchanged
-     
     document.addEventListener('DOMContentLoaded', function () {
       const tbody = document.querySelector('tbody');
+      const totalAShiftElem = document.getElementById('total-a-shift');
+      const totalBShiftElem = document.getElementById('total-b-shift');
       const totalProductionElem = document.getElementById('total-production');
       const totalAcedElem = document.getElementById('total-aced');
       const totalDefectsElem = document.getElementById('total-defects');
@@ -198,7 +200,9 @@
         row.innerHTML = `
           <td>${index + 1}</td>
           <td><input type="text" class="part-name" name="part-name-${index + 1}" value="${partName}" readonly></td>
-          <td><input type="number" class="quantity" name="quantity-${index + 1}" min="0" placeholder="0"></td>
+          <td><input type="number" class="a-shift" name="a-shift-${index + 1}" min="0" placeholder="0"></td>
+          <td><input type="number" class="b-shift" name="b-shift-${index + 1}" min="0" placeholder="0"></td>
+          <td><input type="number" class="total-production" name="total-production-${index + 1}" min="0" placeholder="0" readonly></td> <!-- New Column -->
           <td><input type="number" class="aced" name="aced-${index + 1}" min="0" placeholder="0"></td>
           <td><input type="number" class="defects" name="defects-${index + 1}" min="0" placeholder="0"></td>
           <td><input type="text" class="spr" name="spr-${index + 1}" placeholder="0.00%" readonly></td>
@@ -209,26 +213,35 @@
 
       // Calculate totals and SPR %
       function calculateTotals() {
+        let totalAShift = 0;
+        let totalBShift = 0;
         let totalProduction = 0;
         let totalAced = 0;
         let totalDefects = 0;
         let overallSpr = 0;
 
         document.querySelectorAll('tbody tr').forEach((row) => {
-          const quantity = parseFloat(row.querySelector('.quantity').value) || 0;
-          const aced = parseFloat(row.querySelector('.aced').value) || 0;
+          const aShift = parseFloat(row.querySelector('.a-shift').value) || 0;
+          const bShift = parseFloat(row.querySelector('.b-shift').value) || 0;
           const defects = parseFloat(row.querySelector('.defects').value) || 0;
+          const totalProd = aShift + bShift;
 
-          const spr = quantity > 0 ? ((1 - defects / quantity) * 100).toFixed(2) : 0;
+          row.querySelector('.total-production').value = totalProd; // Set the total production per row
+
+          const spr = totalProd > 0 ? ((1 - defects / totalProd) * 100).toFixed(2) : 0;
           row.querySelector('.spr').value = `${spr}%`;
 
-          totalProduction += quantity;
-          totalAced += aced;
+          totalAShift += aShift;
+          totalBShift += bShift;
+          totalProduction += totalProd;
+          totalAced += parseFloat(row.querySelector('.aced').value) || 0;
           totalDefects += defects;
         });
 
         overallSpr = totalProduction > 0 ? ((1 - totalDefects / totalProduction) * 100).toFixed(2) : 0;
 
+        totalAShiftElem.textContent = totalAShift;
+        totalBShiftElem.textContent = totalBShift;
         totalProductionElem.textContent = totalProduction;
         totalAcedElem.textContent = totalAced;
         totalDefectsElem.textContent = totalDefects;
@@ -239,79 +252,76 @@
 
       // Generate PDF function
       document.getElementById('generate-pdf').addEventListener('click', function () {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
 
-  // Get Filled By Name
-  const filledByName = document.querySelector('input[type="text"]').value || 'No Name Provided';
+        const filledByName = document.querySelector('input[type="text"]').value || 'No Name Provided';
+        const reportDate = reportDateElem.value || 'No Date Provided';
 
-  // Add Report Title
-  const reportDate = reportDateElem.value || 'No Date Provided';
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('DAILY PRODUCTION REPORT', 105, 20, { align: 'center' });
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Report Date: ${reportDate}`, 105, 30, { align: 'center' });
-  doc.text('Hero Accessories Line', 105, 38, { align: 'center' });
-  doc.text(`Filled By: ${filledByName}`, 105, 46, { align: 'center' });  // Add Filled By name
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('DAILY PRODUCTION REPORT', 105, 20, { align: 'center' });
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Report Date: ${reportDate}`, 105, 30, { align: 'center' });
+        doc.text('Hero Accessories Line', 105, 38, { align: 'center' });
+        doc.text(`Filled By: ${filledByName}`, 105, 46, { align: 'center' });
 
-  // Table Data
-  const tableData = [];
-  document.querySelectorAll('tbody tr').forEach((row) => {
-    const cells = row.querySelectorAll('td');
-    const partName = cells[1].querySelector('input').value || '-';
-    const quantity = cells[2].querySelector('input').value || '0';
-    const aced = cells[3].querySelector('input').value || '0';
-    const defects = cells[4].querySelector('input').value || '0';
-    const spr = cells[5].querySelector('input').value || '0%';
-    const pdiOkParts = cells[6].querySelector('input').value || '0';
-    tableData.push([cells[0].textContent, partName, quantity, aced, defects, spr, pdiOkParts]);
-  });
+        const tableData = [];
+        document.querySelectorAll('tbody tr').forEach((row) => {
+          const cells = row.querySelectorAll('td');
+          const partName = cells[1].querySelector('input').value || '-';
+          const aShift = cells[2].querySelector('input').value || '0';
+          const bShift = cells[3].querySelector('input').value || '0';
+          const totalProd = cells[4].querySelector('input').value || '0'; // Total Production column
+          const aced = cells[5].querySelector('input').value || '0';
+          const defects = cells[6].querySelector('input').value || '0';
+          const spr = cells[7].querySelector('input').value || '0%';
+          const pdiOkParts = cells[8].querySelector('input').value || '0';
+          tableData.push([cells[0].textContent, partName, aShift, bShift, totalProd, aced, defects, spr, pdiOkParts]);
+        });
 
-  // Add Table
-  doc.autoTable({
-    startY: 50,
-    head: [['SI.NO', 'Part Name', 'Total Production', 'ACED Move', 'Defects', 'SPR (%)', 'PDI OK Parts']],
-    body: tableData,
-    theme: 'grid',
-    styles: {
-      fontSize: 10,
-      cellPadding: 3,
-      halign: 'center',
-    },
-    headStyles: {
-      fillColor: [52, 58, 64], // Dark Gray Header
-      textColor: [255, 255, 255], // White Text
-      fontStyle: 'bold',
-    },
-    bodyStyles: {
-      fillColor: [245, 245, 245], // Light Gray Rows
-      textColor: [0, 0, 0], // Black Text
-    },
-    alternateRowStyles: {
-      fillColor: [255, 255, 255], // White Alternating Rows
-    },
-  });
+        doc.autoTable({
+          startY: 50,
+          head: [['SI.NO', 'Part Name', 'A Shift Production', 'B Shift Production', 'Total Production', 'ACED Move', 'Defects', 'SPR (%)', 'PDI OK Parts']],
+          body: tableData,
+          theme: 'grid',
+          styles: {
+            fontSize: 10,
+            cellPadding: 3,
+            halign: 'center',
+          },
+          headStyles: {
+            fillColor: [52, 58, 64], // Dark Gray Header
+            textColor: [255, 255, 255], // White Text
+            fontStyle: 'bold',
+          },
+          bodyStyles: {
+            fillColor: [245, 245, 245], // Light Gray Rows
+            textColor: [0, 0, 0], // Black Text
+          },
+          alternateRowStyles: {
+            fillColor: [255, 255, 255], // White Alternating Rows
+          },
+        });
 
-  // Add Totals Section
-  const lastTableY = doc.lastAutoTable.finalY + 10;
-  doc.setFontSize(12);
-  doc.text(`Total Production: ${totalProductionElem.textContent}`, 14, lastTableY);
-  doc.text(`Total ACED Move: ${totalAcedElem.textContent}`, 14, lastTableY + 10);
-  doc.text(`Total Defects: ${totalDefectsElem.textContent}`, 14, lastTableY + 20);
-  doc.text(`Overall SPR (%): ${overallSprElem.textContent}`, 14, lastTableY + 30);
+        const lastTableY = doc.lastAutoTable.finalY + 10;
+        doc.setFontSize(12);
+        doc.text(`Total A Shift Production: ${totalAShiftElem.textContent}`, 14, lastTableY);
+        doc.text(`Total B Shift Production: ${totalBShiftElem.textContent}`, 14, lastTableY + 10);
+        doc.text(`Total Production: ${totalProductionElem.textContent}`, 14, lastTableY + 20);
+        doc.text(`Total ACED Move: ${totalAcedElem.textContent}`, 14, lastTableY + 30);
+        doc.text(`Total Defects: ${totalDefectsElem.textContent}`, 14, lastTableY + 40);
+        doc.text(`Overall SPR (%): ${overallSprElem.textContent}`, 14, lastTableY + 50);
 
-  // Add Footer
-  const pageHeight = doc.internal.pageSize.height;
-  doc.setFontSize(10);
-  doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, pageHeight - 10);
-  doc.text(`Page 1 of 1`, 200, pageHeight - 10, { align: 'right' });
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFontSize(10);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, pageHeight - 10);
+        doc.text(`Page 1 of 1`, 200, pageHeight - 10, { align: 'right' });
 
-  // Save PDF
-  doc.save('DAILY_PRODUCTION_REPORT.pdf');
-});
-});
+        doc.save('DAILY_PRODUCTION_REPORT.pdf');
+      });
+    });
   </script>
 </body>
 </html>
